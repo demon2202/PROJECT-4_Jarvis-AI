@@ -30,7 +30,7 @@ def takeCommand():
 
 # News function for India
 def get_news():
-    api_key = "09bf968387dd4dc2884a907524109bbc"  # Replace with your News API key
+    api_key = "key"  # Replace with your News API key
     url = f"https://newsapi.org/v2/top-headlines?country=in&apiKey={api_key}"
     try:
         response = requests.get(url)
