@@ -1,4 +1,4 @@
-🤖 Jarvis AI
+## 🤖 Jarvis AI
 
 Jarvis AI is a 🐍 Python-based voice assistant 🎙️ that can perform various tasks such as fetching 📰 news, checking ☁️ weather updates, managing 🗒️ reminders, playing 🎵 music, and setting ⏳ timers. It leverages libraries like speech_recognition, pyttsx3, and APIs for enhanced functionality.
 
