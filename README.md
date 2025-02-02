@@ -5,7 +5,7 @@ Jarvis AI is a 🐍 Python-based voice assistant 🎙️ that can perform variou
 🌟 Features
 
 1. 🎤 Voice Commands
-
+   
 Recognizes and processes voice commands using the speech_recognition library.
 
 The takeCommand function captures 🔊 audio input, processes it with Google Speech Recognition API, and returns the recognized text in lowercase.
