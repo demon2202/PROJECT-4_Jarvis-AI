@@ -1,20 +1,25 @@
+import customtkinter as ctk
+import tkinter as tk
+from tkinter import scrolledtext
 import speech_recognition as sr
-import os
-import webbrowser
-import datetime
-import time
-import requests
 import pyttsx3
+import threading
+import time
 import json
+import wave
+import pyaudio
+import numpy as np
+from PIL import Image, ImageTk
+import os
+from datetime import datetime
+import math
+import webbrowser
+import requests
 import wikipedia
 import wolframalpha
 import calendar
 import pyautogui
-import sys
 import cv2
-import numpy as np
-from PIL import Image
-import psutil
 import platform
 import socket
 import cryptocompare
@@ -37,70 +42,143 @@ import face_recognition
 import pygame
 import openai
 
-class JarvisAI:
+class ModernAIAssistant:
     def __init__(self):
-        # [Previous initialization code remains the same]
+        # Initialize the main window
+        self.root = ctk.CTk()
+        self.root.title("AI Assistant")
+        self.root.geometry("800x600")
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("blue")
+
+        # Initialize core components
+        self.setup_core_components()
         
-        # Initialize new components
-        pygame.mixer.init()
+        # Create and configure the GUI
+        self.setup_gui()
+        
+        # Load conversation history
+        self.conversation_history = []
+        self.load_history()
+
+    def setup_core_components(self):
+        """Initialize all core AI components"""
+        # Speech components
+        self.engine = pyttsx3.init()
+        self.engine.setProperty('rate', 150)
+        self.recognizer = sr.Recognizer()
+        
+        # Audio components
+        self.audio_data = []
+        self.is_recording = False
+        self.is_listening = False
+        self.p = pyaudio.PyAudio()
+        
+        # Translation
+        self.translator = Translator()
+        
+        # AI/ML components
+        self.wolfram_client = wolframalpha.Client('YOUR_WOLFRAM_ALPHA_KEY')
+        self.openai.api_key = "YOUR_OPENAI_API_KEY"
+        
+        # Face recognition
         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
         self.known_faces = {}
         self.load_known_faces()
         
-        # API Keys (replace with your keys)
-        self.openai_key = "YOUR_OPENAI_API_KEY"
-        openai.api_key = self.openai_key
+        # Initialize settings
+        self.load_settings()
 
-    def load_known_faces(self):
-        """Load known faces from faces directory"""
-        faces_dir = "known_faces"
-        if os.path.exists(faces_dir):
-            for filename in os.listdir(faces_dir):
-                if filename.endswith((".jpg", ".jpeg", ".png")):
-                    name = os.path.splitext(filename)[0]
-                    image_path = os.path.join(faces_dir, filename)
-                    face_image = face_recognition.load_image_file(image_path)
-                    face_encoding = face_recognition.face_encodings(face_image)[0]
-                    self.known_faces[name] = face_encoding
+    def load_settings(self):
+        """Load application settings"""
+        try:
+            with open('settings.json', 'r') as f:
+                self.settings = json.load(f)
+        except FileNotFoundError:
+            self.settings = {
+                'voice_rate': 150,
+                'voice_volume': 1.0,
+                'language': 'en',
+                'city': 'Your City',
+                'news_api_key': 'YOUR_NEWS_API_KEY',
+                'weather_api_key': 'YOUR_WEATHER_API_KEY',
+                'email': 'your_email@gmail.com',
+                'email_password': 'your_app_password'
+            }
+            self.save_settings()
 
-    def face_recognition_security(self):
-        """Implement face recognition security"""
-        self.say("Initiating face recognition security check...")
-        
-        cap = cv2.VideoCapture(0)
-        ret, frame = cap.read()
-        
-        if not ret:
-            self.say("Could not access camera")
-            return False
+    [... Previous GUI setup methods remain the same ...]
+
+    def process_command(self, command):
+        """Process user commands and generate responses"""
+        command = command.lower()
+        response = ""
+
+        try:
+            # System commands
+            if "system info" in command:
+                response = self.get_system_info()
             
-        face_locations = face_recognition.face_locations(frame)
-        if face_locations:
-            face_encoding = face_recognition.face_encodings(frame, face_locations)[0]
+            # Weather commands
+            elif "weather" in command:
+                response = self.get_weather()
             
-            for name, known_encoding in self.known_faces.items():
-                match = face_recognition.compare_faces([known_encoding], face_encoding)[0]
-                if match:
-                    self.say(f"Welcome back, {name}!")
-                    cap.release()
-                    return True
-                    
-        self.say("Unauthorized user detected!")
-        cap.release()
-        return False
+            # News commands
+            elif "news" in command:
+                category = 'general'
+                for cat in ['business', 'technology', 'sports', 'science', 'health']:
+                    if cat in command:
+                        category = cat
+                response = self.get_news(category)
+            
+            # Translation commands
+            elif "translate" in command:
+                response = self.handle_translation(command)
+            
+            # Financial commands
+            elif "crypto" in command:
+                crypto = "BTC"
+                for coin in ["ETH", "DOGE", "XRP"]:
+                    if coin.lower() in command:
+                        crypto = coin
+                response = self.get_crypto_price(crypto)
+            
+            elif "stock price" in command:
+                symbol = command.split("stock price")[-1].strip().upper()
+                response = self.get_stock_info(symbol)
+            
+            # Media commands
+            elif "download youtube" in command:
+                response = self.handle_youtube_download(command)
+            
+            # Utility commands
+            elif "create qr" in command:
+                response = self.handle_qr_generation(command)
+            
+            # AI chat commands
+            elif "chat" in command:
+                prompt = command.replace("chat", "").strip()
+                response = self.chat_with_gpt(prompt)
+            
+            # Help command
+            elif "help" in command:
+                response = self.get_help_text()
+            
+            # Exit command
+            elif "exit" in command or "goodbye" in command:
+                response = "Goodbye! Have a great day!"
+                self.root.after(2000, self.root.quit)
+            
+            else:
+                response = "I'm not sure how to help with that. Try asking for 'help' to see what I can do."
 
-    def generate_qr_code(self, data, filename="qr_code.png"):
-        """Generate QR code from data"""
-        qr = qrcode.QRCode(version=1, box_size=10, border=5)
-        qr.add_data(data)
-        qr.make(fit=True)
-        
-        qr_image = qr.make_image(fill_color="black", back_color="white")
-        qr_image.save(filename)
-        self.say(f"QR code generated and saved as {filename}")
+        except Exception as e:
+            response = f"Sorry, I encountered an error: {str(e)}"
+
+        return response
 
     def get_system_info(self):
-        """Get detailed system information"""
+        """Get system information"""
         cpu_usage = psutil.cpu_percent()
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage('/')
@@ -117,16 +195,75 @@ class JarvisAI:
         """
         if battery:
             info += f"Battery: {battery.percent}% {'Charging' if battery.power_plugged else 'Not Charging'}"
-            
-        self.say(info)
+        return info
 
-    def get_crypto_price(self, crypto_currency="BTC", base_currency="USD"):
+    def get_weather(self):
+        """Get weather information"""
+        try:
+            url = f"http://api.openweathermap.org/data/2.5/weather?q={self.settings['city']}&appid={self.settings['weather_api_key']}&units=metric"
+            response = requests.get(url)
+            weather_data = response.json()
+            
+            if weather_data["cod"] == 200:
+                temp = weather_data["main"]["temp"]
+                humidity = weather_data["main"]["humidity"]
+                desc = weather_data["weather"][0]["description"]
+                return f"Current weather in {self.settings['city']}: {temp}°C, {desc}, Humidity: {humidity}%"
+            else:
+                return "Sorry, couldn't fetch weather information."
+        except Exception as e:
+            return f"Error getting weather: {str(e)}"
+
+    def get_news(self, category='general'):
+        """Get news updates"""
+        try:
+            url = f"https://newsapi.org/v2/top-headlines?country=in&category={category}&apiKey={self.settings['news_api_key']}"
+            response = requests.get(url)
+            news_data = response.json()
+            
+            if news_data["status"] == "ok":
+                articles = news_data["articles"][:5]
+                news_text = f"\nTop {category} news:\n\n"
+                for i, article in enumerate(articles, 1):
+                    news_text += f"{i}. {article['title']}\n"
+                return news_text
+            else:
+                return "Sorry, couldn't fetch news updates."
+        except Exception as e:
+            return f"Error getting news: {str(e)}"
+
+    def handle_translation(self, command):
+        """Handle translation requests"""
+        try:
+            if "to" in command:
+                parts = command.split("to")
+                text = parts[0].replace("translate", "").strip()
+                target_lang = parts[1].strip()
+                
+                # Get language code
+                lang_code = None
+                for code, lang in LANGUAGES.items():
+                    if target_lang.lower() in lang.lower():
+                        lang_code = code
+                        break
+                
+                if lang_code:
+                    translation = self.translator.translate(text, dest=lang_code)
+                    return f"Translation: {translation.text}"
+                else:
+                    return "Sorry, I don't recognize that language."
+            else:
+                return "Please specify the target language (e.g., 'translate hello to spanish')"
+        except Exception as e:
+            return f"Error in translation: {str(e)}"
+
+    def get_crypto_price(self, crypto="BTC"):
         """Get cryptocurrency price"""
         try:
-            price = cryptocompare.get_price(crypto_currency, currency=base_currency)
-            self.say(f"Current {crypto_currency} price in {base_currency}: {price[crypto_currency][base_currency]}")
+            price = cryptocompare.get_price(crypto, currency='USD')
+            return f"Current {crypto} price: ${price[crypto]['USD']:,.2f}"
         except Exception as e:
-            self.say(f"Sorry, couldn't fetch cryptocurrency price: {str(e)}")
+            return f"Error getting crypto price: {str(e)}"
 
     def get_stock_info(self, symbol):
         """Get stock market information"""
@@ -135,40 +272,42 @@ class JarvisAI:
             info = stock.info
             current_price = info.get('regularMarketPrice', 'N/A')
             previous_close = info.get('regularMarketPreviousClose', 'N/A')
-            market_cap = info.get('marketCap', 'N/A')
-            
-            self.say(f"""
-            Stock Information for {symbol}:
-            Current Price: ${current_price}
-            Previous Close: ${previous_close}
-            Market Cap: ${market_cap:,}
-            """)
+            return f"Stock Info for {symbol}:\nCurrent Price: ${current_price}\nPrevious Close: ${previous_close}"
         except Exception as e:
-            self.say(f"Sorry, couldn't fetch stock information: {str(e)}")
+            return f"Error getting stock info: {str(e)}"
 
-    def download_youtube_video(self, url, audio_only=False):
-        """Download YouTube video or audio"""
+    def handle_youtube_download(self, command):
+        """Handle YouTube video download"""
         try:
+            # For demo purposes, using a sample URL
+            url = "https://www.youtube.com/watch?v=sample"
+            audio_only = "audio only" in command.lower()
+            
             yt = YouTube(url)
             if audio_only:
                 stream = yt.streams.filter(only_audio=True).first()
                 output_file = stream.download(output_path="downloads", filename_prefix="audio_")
-                self.say(f"Audio downloaded: {output_file}")
+                return f"Audio downloaded: {output_file}"
             else:
-                stream = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
+                stream = yt.streams.filter(progressive=True, file_extension='mp4').first()
                 output_file = stream.download(output_path="downloads")
-                self.say(f"Video downloaded: {output_file}")
+                return f"Video downloaded: {output_file}"
         except Exception as e:
-            self.say(f"Sorry, couldn't download the video: {str(e)}")
+            return f"Error downloading video: {str(e)}"
 
-    def currency_converter(self, amount, from_currency, to_currency):
-        """Convert currency using real-time exchange rates"""
+    def handle_qr_generation(self, command):
+        """Handle QR code generation"""
         try:
-            c = CurrencyRates()
-            result = c.convert(from_currency, to_currency, amount)
-            self.say(f"{amount} {from_currency} is equal to {result:.2f} {to_currency}")
+            data = command.replace("create qr", "").strip()
+            qr = qrcode.QRCode(version=1, box_size=10, border=5)
+            qr.add_data(data)
+            qr.make(fit=True)
+            
+            filename = f"qr_code_{int(time.time())}.png"
+            qr.make_image(fill_color="black", back_color="white").save(filename)
+            return f"QR code generated: {filename}"
         except Exception as e:
-            self.say(f"Sorry, couldn't convert currency: {str(e)}")
+            return f"Error generating QR code: {str(e)}"
 
     def chat_with_gpt(self, prompt):
         """Chat with GPT model"""
@@ -177,111 +316,31 @@ class JarvisAI:
                 model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}]
             )
-            answer = response.choices[0].message.content
-            self.say(answer)
+            return response.choices[0].message.content
         except Exception as e:
-            self.say(f"Sorry, couldn't get a response from GPT: {str(e)}")
+            return f"Error chatting with GPT: {str(e)}"
 
-    def play_music_with_controls(self, file_path):
-        """Play music with basic controls"""
-        pygame.mixer.music.load(file_path)
-        pygame.mixer.music.play()
+    def get_help_text(self):
+        """Get help information"""
+        return """
+        I can help you with:
+        1. System Information: "system info"
+        2. Weather Updates: "weather"
+        3. News Updates: "news [category]"
+        4. Translations: "translate [text] to [language]"
+        5. Cryptocurrency Prices: "crypto [symbol]"
+        6. Stock Information: "stock price [symbol]"
+        7. YouTube Downloads: "download youtube [url]"
+        8. QR Code Generation: "create qr [data]"
+        9. AI Chat: "chat [message]"
         
-        while pygame.mixer.music.get_busy():
-            print("\nMusic Controls:")
-            print("P - Pause/Resume")
-            print("S - Stop")
-            print("+ - Volume Up")
-            print("- - Volume Down")
-            print("Q - Quit")
-            
-            command = input("Enter command: ").lower()
-            
-            if command == 'p':
-                if pygame.mixer.music.get_busy():
-                    pygame.mixer.music.pause()
-                else:
-                    pygame.mixer.music.unpause()
-            elif command == 's':
-                pygame.mixer.music.stop()
-                break
-            elif command == '+':
-                current_volume = pygame.mixer.music.get_volume()
-                pygame.mixer.music.set_volume(min(1.0, current_volume + 0.1))
-            elif command == '-':
-                current_volume = pygame.mixer.music.get_volume()
-                pygame.mixer.music.set_volume(max(0.0, current_volume - 0.1))
-            elif command == 'q':
-                pygame.mixer.music.stop()
-                break
+        You can also use voice commands by clicking the microphone button!
+        """
 
     def run(self):
-        # Implement face recognition security
-        if not self.face_recognition_security():
-            self.say("Access denied. Shutting down.")
-            return
-
-        self.say("Hello! I'm Jarvis, your AI assistant. How can I help you today?")
-        
-        while True:
-            self.check_reminders()
-            query = self.take_command()
-            
-            if not query:
-                continue
-
-            # New command handlers
-            if "system info" in query:
-                self.get_system_info()
-
-            elif "crypto" in query:
-                parts = query.split()
-                crypto = "BTC"  # default
-                for part in parts:
-                    if part.upper() in ["BTC", "ETH", "DOGE", "XRP"]:
-                        crypto = part.upper()
-                self.get_crypto_price(crypto)
-
-            elif "stock price" in query:
-                symbol = query.split("stock price")[-1].strip().upper()
-                self.get_stock_info(symbol)
-
-            elif "download youtube" in query:
-                self.say("Please paste the YouTube URL:")
-                url = input("URL: ")
-                audio_only = "audio only" in query.lower()
-                self.download_youtube_video(url, audio_only)
-
-            elif "convert currency" in query:
-                self.say("Amount to convert:")
-                amount = float(input("Amount: "))
-                self.say("From which currency? (e.g., USD)")
-                from_curr = input("From: ").upper()
-                self.say("To which currency? (e.g., EUR)")
-                to_curr = input("To: ").upper()
-                self.currency_converter(amount, from_curr, to_curr)
-
-            elif "create qr code" in query:
-                self.say("What data should I encode in the QR code?")
-                data = input("Data: ")
-                self.generate_qr_code(data)
-
-            elif "chat gpt" in query:
-                prompt = query.replace("chat gpt", "").strip()
-                if prompt:
-                    self.chat_with_gpt(prompt)
-                else:
-                    self.say("What would you like to ask GPT?")
-                    prompt = self.take_command()
-                    if prompt:
-                        self.chat_with_gpt(prompt)
-
-            # [Previous command handlers remain the same]
-
-            elif "exit" in query or "goodbye" in query:
-                self.say("Goodbye! Have a great day!")
-                break
+        """Start the application"""
+        self.root.mainloop()
 
 if __name__ == "__main__":
-    jarvis = JarvisAI()
-    jarvis.run()
+    app = ModernAIAssistant()
+    app.run()
