@@ -1,346 +1,225 @@
-import customtkinter as ctk
 import tkinter as tk
 from tkinter import scrolledtext
 import speech_recognition as sr
 import pyttsx3
 import threading
-import time
-import json
-import wave
-import pyaudio
-import numpy as np
-from PIL import Image, ImageTk
 import os
-from datetime import datetime
-import math
-import webbrowser
-import requests
-import wikipedia
-import wolframalpha
-import calendar
-import pyautogui
-import cv2
 import platform
 import socket
-import cryptocompare
-import yfinance as yf
-from bs4 import BeautifulSoup
-from pytube import YouTube
-from forex_python.converter import CurrencyRates
-from newsapi import NewsApiClient
-from googletrans import Translator, LANGUAGES
-from gtts import gTTS
-from playsound import playsound
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-import smtplib
+import pyautogui
+import cv2
+import numpy as np
 import random
 import pyjokes
-import speedtest
 import qrcode
-import face_recognition
-import pygame
-import openai
+import datetime
+from bs4 import BeautifulSoup
+import requests
+import webbrowser
+import wikipedia
+import subprocess
+import psutil
 
 class ModernAIAssistant:
     def __init__(self):
-        # Initialize the main window
-        self.root = ctk.CTk()
+        self.root = tk.Tk()
         self.root.title("AI Assistant")
         self.root.geometry("800x600")
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
 
-        # Initialize core components
         self.setup_core_components()
-        
-        # Create and configure the GUI
         self.setup_gui()
-        
-        # Load conversation history
-        self.conversation_history = []
-        self.load_history()
 
     def setup_core_components(self):
-        """Initialize all core AI components"""
-        # Speech components
+        """Initialize core AI components"""
         self.engine = pyttsx3.init()
         self.engine.setProperty('rate', 150)
         self.recognizer = sr.Recognizer()
-        
-        # Audio components
-        self.audio_data = []
-        self.is_recording = False
-        self.is_listening = False
-        self.p = pyaudio.PyAudio()
-        
-        # Translation
-        self.translator = Translator()
-        
-        # AI/ML components
-        self.wolfram_client = wolframalpha.Client('YOUR_WOLFRAM_ALPHA_KEY')
-        self.openai.api_key = "YOUR_OPENAI_API_KEY"
-        
-        # Face recognition
+
+        # Face Recognition
         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        self.known_faces = {}
-        self.load_known_faces()
-        
-        # Initialize settings
-        self.load_settings()
 
-    def load_settings(self):
-        """Load application settings"""
+    def setup_gui(self):
+        """Create GUI components"""
+        self.textbox = scrolledtext.ScrolledText(self.root, wrap="word", height=20, width=70)
+        self.textbox.pack(pady=20)
+
+        self.speak_button = tk.Button(self.root, text="Speak", command=self.voice_input)
+        self.speak_button.pack()
+
+    def voice_input(self):
+        """Capture voice command"""
+        with sr.Microphone() as source:
+            self.textbox.insert(tk.END, "\nListening...\n")
+            self.recognizer.adjust_for_ambient_noise(source)
+            audio = self.recognizer.listen(source)
+
         try:
-            with open('settings.json', 'r') as f:
-                self.settings = json.load(f)
-        except FileNotFoundError:
-            self.settings = {
-                'voice_rate': 150,
-                'voice_volume': 1.0,
-                'language': 'en',
-                'city': 'Your City',
-                'news_api_key': 'YOUR_NEWS_API_KEY',
-                'weather_api_key': 'YOUR_WEATHER_API_KEY',
-                'email': 'your_email@gmail.com',
-                'email_password': 'your_app_password'
-            }
-            self.save_settings()
-
-    [... Previous GUI setup methods remain the same ...]
+            command = self.recognizer.recognize_google(audio).lower()
+            self.textbox.insert(tk.END, f"\nUser: {command}\n")
+            response = self.process_command(command)
+            self.speak(response)
+        except sr.UnknownValueError:
+            response = "Sorry, I couldn't understand."
+            self.speak(response)
 
     def process_command(self, command):
-        """Process user commands and generate responses"""
-        command = command.lower()
-        response = ""
+        """Process and execute commands"""
+        if "system info" in command:
+            return self.get_system_info()
+        elif "joke" in command:
+            return pyjokes.get_joke()
+        elif "screenshot" in command:
+            return self.take_screenshot()
+        elif "battery" in command:
+            return self.get_battery_status()
+        elif "qr code" in command:
+            return self.generate_qr_code(command)
+        elif "calculate" in command:
+            return self.calculate(command)
+        elif "news" in command:
+            return self.get_local_news()
+        elif "face" in command:
+            return self.detect_face()
+        elif "open" in command:
+            return self.open_application(command)
+        elif "search" in command:
+            return self.search_web(command)
+        elif "wikipedia" in command:
+            return self.search_wikipedia(command)
+        elif "play" in command:
+            return self.play_music()
+        elif "time" in command:
+            return self.get_current_time()
+        elif "exit" in command:
+            self.root.quit()
+            return "Goodbye!"
+        else:
+            return "I'm not sure how to help with that."
 
-        try:
-            # System commands
-            if "system info" in command:
-                response = self.get_system_info()
-            
-            # Weather commands
-            elif "weather" in command:
-                response = self.get_weather()
-            
-            # News commands
-            elif "news" in command:
-                category = 'general'
-                for cat in ['business', 'technology', 'sports', 'science', 'health']:
-                    if cat in command:
-                        category = cat
-                response = self.get_news(category)
-            
-            # Translation commands
-            elif "translate" in command:
-                response = self.handle_translation(command)
-            
-            # Financial commands
-            elif "crypto" in command:
-                crypto = "BTC"
-                for coin in ["ETH", "DOGE", "XRP"]:
-                    if coin.lower() in command:
-                        crypto = coin
-                response = self.get_crypto_price(crypto)
-            
-            elif "stock price" in command:
-                symbol = command.split("stock price")[-1].strip().upper()
-                response = self.get_stock_info(symbol)
-            
-            # Media commands
-            elif "download youtube" in command:
-                response = self.handle_youtube_download(command)
-            
-            # Utility commands
-            elif "create qr" in command:
-                response = self.handle_qr_generation(command)
-            
-            # AI chat commands
-            elif "chat" in command:
-                prompt = command.replace("chat", "").strip()
-                response = self.chat_with_gpt(prompt)
-            
-            # Help command
-            elif "help" in command:
-                response = self.get_help_text()
-            
-            # Exit command
-            elif "exit" in command or "goodbye" in command:
-                response = "Goodbye! Have a great day!"
-                self.root.after(2000, self.root.quit)
-            
-            else:
-                response = "I'm not sure how to help with that. Try asking for 'help' to see what I can do."
-
-        except Exception as e:
-            response = f"Sorry, I encountered an error: {str(e)}"
-
-        return response
+    def speak(self, text):
+        """Speak output"""
+        self.engine.say(text)
+        self.engine.runAndWait()
 
     def get_system_info(self):
-        """Get system information"""
-        cpu_usage = psutil.cpu_percent()
-        memory = psutil.virtual_memory()
-        disk = psutil.disk_usage('/')
-        battery = psutil.sensors_battery()
-        
+        """Return basic system information"""
         info = f"""
-        System Information:
-        CPU Usage: {cpu_usage}%
-        Memory Used: {memory.percent}%
-        Disk Usage: {disk.percent}%
-        Operating System: {platform.system()} {platform.release()}
+        OS: {platform.system()} {platform.release()}
         Machine: {platform.machine()}
         Processor: {platform.processor()}
+        Hostname: {socket.gethostname()}
         """
-        if battery:
-            info += f"Battery: {battery.percent}% {'Charging' if battery.power_plugged else 'Not Charging'}"
         return info
 
-    def get_weather(self):
-        """Get weather information"""
+    def take_screenshot(self):
+        """Capture and save a screenshot"""
+        filename = "screenshot.png"
+        pyautogui.screenshot().save(filename)
+        return "Screenshot saved."
+
+    def get_battery_status(self):
+        """Get battery status (Windows only)"""
         try:
-            url = f"http://api.openweathermap.org/data/2.5/weather?q={self.settings['city']}&appid={self.settings['weather_api_key']}&units=metric"
-            response = requests.get(url)
-            weather_data = response.json()
-            
-            if weather_data["cod"] == 200:
-                temp = weather_data["main"]["temp"]
-                humidity = weather_data["main"]["humidity"]
-                desc = weather_data["weather"][0]["description"]
-                return f"Current weather in {self.settings['city']}: {temp}°C, {desc}, Humidity: {humidity}%"
+            battery = psutil.sensors_battery()
+            return f"Battery: {battery.percent}% {'Charging' if battery.power_plugged else 'Not Charging'}"
+        except:
+            return "Battery info not available."
+
+    def generate_qr_code(self, command):
+        """Generate QR Code"""
+        text = command.replace("qr code", "").strip()
+        filename = "qrcode.png"
+        qr = qrcode.make(text)
+        qr.save(filename)
+        return "QR Code generated."
+
+    def calculate(self, command):
+        """Simple calculator"""
+        try:
+            command = command.replace("calculate", "").strip()
+            result = eval(command)
+            return f"Result: {result}"
+        except:
+            return "Invalid calculation."
+
+    def get_local_news(self):
+        """Scrape news headlines"""
+        url = "https://www.bbc.com/news"
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        headlines = [headline.get_text() for headline in soup.find_all("h3")[:5]]
+        return "\n".join(headlines) if headlines else "No news found."
+
+    def detect_face(self):
+        """Detect faces using OpenCV"""
+        cap = cv2.VideoCapture(0)
+        while True:
+            ret, frame = cap.read()
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
+
+            for (x, y, w, h) in faces:
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+
+            cv2.imshow("Face Detection", frame)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
+
+        cap.release()
+        cv2.destroyAllWindows()
+        return "Face detection stopped."
+
+    def open_application(self, command):
+        """Open an application"""
+        app = command.replace("open", "").strip()
+        try:
+            if platform.system() == "Windows":
+                os.startfile(app)
+            elif platform.system() == "Darwin":
+                subprocess.call(["open", "-a", app])
             else:
-                return "Sorry, couldn't fetch weather information."
-        except Exception as e:
-            return f"Error getting weather: {str(e)}"
+                subprocess.call([app])
+            return f"Opening {app}"
+        except:
+            return f"Could not open {app}"
 
-    def get_news(self, category='general'):
-        """Get news updates"""
+    def search_web(self, command):
+        """Search the web"""
+        query = command.replace("search", "").strip()
+        webbrowser.open(f"https://www.google.com/search?q={query}")
+        return f"Searching for {query} on Google"
+
+    def search_wikipedia(self, command):
+        """Search Wikipedia"""
+        query = command.replace("wikipedia", "").strip()
         try:
-            url = f"https://newsapi.org/v2/top-headlines?country=in&category={category}&apiKey={self.settings['news_api_key']}"
-            response = requests.get(url)
-            news_data = response.json()
-            
-            if news_data["status"] == "ok":
-                articles = news_data["articles"][:5]
-                news_text = f"\nTop {category} news:\n\n"
-                for i, article in enumerate(articles, 1):
-                    news_text += f"{i}. {article['title']}\n"
-                return news_text
+            summary = wikipedia.summary(query, sentences=2)
+            return summary
+        except wikipedia.exceptions.DisambiguationError as e:
+            return f"Multiple results found. Please be more specific: {e}"
+        except wikipedia.exceptions.PageError:
+            return "No results found."
+
+    def play_music(self):
+        """Play a random music file from the Music directory"""
+        music_dir = os.path.expanduser("~/Music")
+        if os.path.exists(music_dir):
+            songs = os.listdir(music_dir)
+            if songs:
+                song = random.choice(songs)
+                os.startfile(os.path.join(music_dir, song))
+                return f"Playing {song}"
             else:
-                return "Sorry, couldn't fetch news updates."
-        except Exception as e:
-            return f"Error getting news: {str(e)}"
+                return "No music files found."
+        else:
+            return "Music directory not found."
 
-    def handle_translation(self, command):
-        """Handle translation requests"""
-        try:
-            if "to" in command:
-                parts = command.split("to")
-                text = parts[0].replace("translate", "").strip()
-                target_lang = parts[1].strip()
-                
-                # Get language code
-                lang_code = None
-                for code, lang in LANGUAGES.items():
-                    if target_lang.lower() in lang.lower():
-                        lang_code = code
-                        break
-                
-                if lang_code:
-                    translation = self.translator.translate(text, dest=lang_code)
-                    return f"Translation: {translation.text}"
-                else:
-                    return "Sorry, I don't recognize that language."
-            else:
-                return "Please specify the target language (e.g., 'translate hello to spanish')"
-        except Exception as e:
-            return f"Error in translation: {str(e)}"
-
-    def get_crypto_price(self, crypto="BTC"):
-        """Get cryptocurrency price"""
-        try:
-            price = cryptocompare.get_price(crypto, currency='USD')
-            return f"Current {crypto} price: ${price[crypto]['USD']:,.2f}"
-        except Exception as e:
-            return f"Error getting crypto price: {str(e)}"
-
-    def get_stock_info(self, symbol):
-        """Get stock market information"""
-        try:
-            stock = yf.Ticker(symbol)
-            info = stock.info
-            current_price = info.get('regularMarketPrice', 'N/A')
-            previous_close = info.get('regularMarketPreviousClose', 'N/A')
-            return f"Stock Info for {symbol}:\nCurrent Price: ${current_price}\nPrevious Close: ${previous_close}"
-        except Exception as e:
-            return f"Error getting stock info: {str(e)}"
-
-    def handle_youtube_download(self, command):
-        """Handle YouTube video download"""
-        try:
-            # For demo purposes, using a sample URL
-            url = "https://www.youtube.com/watch?v=sample"
-            audio_only = "audio only" in command.lower()
-            
-            yt = YouTube(url)
-            if audio_only:
-                stream = yt.streams.filter(only_audio=True).first()
-                output_file = stream.download(output_path="downloads", filename_prefix="audio_")
-                return f"Audio downloaded: {output_file}"
-            else:
-                stream = yt.streams.filter(progressive=True, file_extension='mp4').first()
-                output_file = stream.download(output_path="downloads")
-                return f"Video downloaded: {output_file}"
-        except Exception as e:
-            return f"Error downloading video: {str(e)}"
-
-    def handle_qr_generation(self, command):
-        """Handle QR code generation"""
-        try:
-            data = command.replace("create qr", "").strip()
-            qr = qrcode.QRCode(version=1, box_size=10, border=5)
-            qr.add_data(data)
-            qr.make(fit=True)
-            
-            filename = f"qr_code_{int(time.time())}.png"
-            qr.make_image(fill_color="black", back_color="white").save(filename)
-            return f"QR code generated: {filename}"
-        except Exception as e:
-            return f"Error generating QR code: {str(e)}"
-
-    def chat_with_gpt(self, prompt):
-        """Chat with GPT model"""
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}]
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            return f"Error chatting with GPT: {str(e)}"
-
-    def get_help_text(self):
-        """Get help information"""
-        return """
-        I can help you with:
-        1. System Information: "system info"
-        2. Weather Updates: "weather"
-        3. News Updates: "news [category]"
-        4. Translations: "translate [text] to [language]"
-        5. Cryptocurrency Prices: "crypto [symbol]"
-        6. Stock Information: "stock price [symbol]"
-        7. YouTube Downloads: "download youtube [url]"
-        8. QR Code Generation: "create qr [data]"
-        9. AI Chat: "chat [message]"
-        
-        You can also use voice commands by clicking the microphone button!
-        """
-
-    def run(self):
-        """Start the application"""
-        self.root.mainloop()
+    def get_current_time(self):
+        """Get the current time"""
+        now = datetime.datetime.now()
+        return f"The current time is {now.strftime('%H:%M:%S')}"
 
 if __name__ == "__main__":
-    app = ModernAIAssistant()
-    app.run()
+    assistant = ModernAIAssistant()
+    assistant.root.mainloop()
