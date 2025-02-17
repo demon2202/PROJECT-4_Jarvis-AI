@@ -32,17 +32,19 @@ Follow these steps to set up the project locally:
 Once the assistant is running, you can interact with it using voice commands or text input. Here are some examples:
 
 ### 🔊 Voice Commands
-To activate voice commands, simply say **'Hey Assistant'** followed by your request:
-- "What is the weather today?"
-- "Translate 'Hello' to Spanish"
-- "Tell me the latest news"
-- "Set a reminder for my meeting at 3 PM"
-- "Create a QR code for my contact info"
-- "Play some music"
-- "Stop the music"
-- "Tell me a joke"
-- "Open YouTube"
-- "Search for AI on Google"
+-To activate voice commands, simply say **'Hey Assistant'** followed by your request:
+-Weather: "weather [location]" - Get the current weather for a specific location.
+-Reminder: "reminder [task] in [time]" - Set a reminder (e.g., "reminder drink water in 5 minutes").
+-Email: "email [subject] to [recipient]" - Send an email (e.g., "email Hello to friend@gmail.com").
+-Translate: "translate [text] to [language]" - Translate text to a specified language (e.g., "translate Hello to Spanish").
+-Internet Speed: "internet speed" - Check the current internet speed.
+-IP Address: "ip address" - Get your public IP address.
+-YouTube: "youtube [query]" - Open YouTube or search for a video.
+-Maps: "maps [location]" - Open Google Maps or search for a location.
+-Social Media: "social media [platform]" - Open a social media platform (e.g., "social media facebook").
+-Read File: "read file [filename]" - Read the contents of a text file.
+-Write File: "write file [filename] with [content]" - Write text to a file.
+-CPU/Memory Usage: "cpu" or "memory" - Get real-time CPU and memory usage.
 
 ### ⌨️ Text Input
 If voice input is unavailable, type your command in the interface and press **Enter** to receive responses.
