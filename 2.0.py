@@ -35,7 +35,7 @@ class ModernAIAssistant:
             self.root.iconbitmap("ai_icon.ico")
         except:
             pass  # Icon file not found, continue without it
-            
+
         # Setup theme and styles
         self.setup_theme()
         self.setup_core_components()
