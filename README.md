@@ -11,7 +11,8 @@ Follow these steps to set up the project locally:
    git clone https://github.com/your-username/ModernAI-Assistant.git
    cd ModernAI-Assistant
    ```
-   
+
+
 2. **Create a Virtual Environment** (optional but recommended)
    ```bash
    python -m venv venv
